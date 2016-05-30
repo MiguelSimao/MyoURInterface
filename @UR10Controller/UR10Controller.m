@@ -21,7 +21,6 @@ properties
     t_min = 3.0         % minimal time before function return
     t_max = 1.0
 end
-
 properties (SetAccess = private)
     isConnected = false     % Robot Connected, aka TCP/IP object connected
     autoMode = false        % If automatic mode
@@ -31,12 +30,10 @@ properties (SetAccess = private)
     currentCommand          % String representing a command to be sent
 end
 
-%% Hidden Properties
-properties (Access = private) % Default 
+%% More Properties
+properties (SetAccess = private) % Default 
    defaultHost = '192.168.1.2'
    defaultPort = 30002
-   refreshRate = 1/125  % seconds. Default is 0.008 (1/125).
-   timestampBegin
 end
 properties (Dependent)
     speedLimitCart
@@ -45,6 +42,11 @@ properties (Dependent)
     t_factorJoint
     timerStopDelay
     timestamp
+end
+properties (SetAccess = private, Hidden = true)
+    timestampBegin
+    displacement = zeros(6,1)
+    radDeg = round(180/pi,3)
 end
 %% Events
 events
@@ -122,9 +124,10 @@ function set.inc( obj, value )
                 r = obj.speedLimitCart / norm(obj.inc(1:3));
                 obj.inc(1:3) = r * obj.inc(1:3);
                 fprintf(['The specified speed cannot be attained under these conditions.\n'...
-                         'Speed Rescale factor: %.2f\n'], r);
+                         'Rescale factor: %.2f\n'], r);
             end
             speedl(obj);
+            obj.inc = zeros(6,1);
         end
     end
 end %set.inc
@@ -319,6 +322,7 @@ function speedl(obj)
     obj.currentCommand = s;
     startTimer(obj);
     sendCommand(obj);
+    displacementEstimation(obj);
 end
 function speedj(obj)
 % Function speedj - Accelerate joints to target speed.
@@ -334,6 +338,15 @@ function stopl(obj)
 end
 
 end %methods
+%% OTHER METHODS
+methods
+    function displacementEstimation(obj)
+        % Diplacement is a function of the target speed and time.
+        % x = x0 + vt (infinite jerk approximation)
+        obj.displacement = obj.displacement + obj.inc * obj.timerStopDelay;
+        fprintf('x:% 4.2f y:% 4.2f z:% 4.2f [cm] | h:% 3.0fº\n',obj.displacement(1:3)*100,obj.displacement(6)*obj.radDeg);
+    end    
+end%methods(other)
 %% PRIVATE METHODS
 methods ( Access = private )
     function timerStopFcn(src,~,~,~)
