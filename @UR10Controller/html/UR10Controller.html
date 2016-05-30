@@ -1,0 +1,700 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>UR10Controller</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2016-05-23"><meta name="DC.source" content="UR10Controller.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#3">Public Properties</a></li><li><a href="#4">Hidden Properties</a></li><li><a href="#5">Events</a></li><li><a href="#6">CONSTRUCTORS</a></li><li><a href="#7">PROPERTY ACCESS METHODS</a></li><li><a href="#8">BASIC METHODS</a></li><li><a href="#9">CONTROL METHODS: Rotation</a></li><li><a href="#10">CONTROL METHODS: Translation</a></li><li><a href="#11">COMMAND METHODS</a></li><li><a href="#13">PRIVATE METHODS</a></li><li><a href="#14">STATIC METHODS</a></li></ul></div><pre class="codeinput"><span class="keyword">classdef</span> UR10Controller &lt; handle
+</pre><pre class="codeinput"><span class="comment">%UR10Controller Adds commands for steering the end effector of a UR10</span>
+<span class="comment">%robot based on a remote TCP/IP connection.</span>
+<span class="comment">%</span>
+</pre><h2>Public Properties<a name="3"></a></h2><pre class="codeinput">properties
+    inc = zeros(6,1)    <span class="comment">% 3D Translation vector, Z-Rotation Scalar (4D)</span>
+    a = 0.2             <span class="comment">% tool acceleration (m/s^2)</span>
+    t_min = 1.0         <span class="comment">% minimal time before function return</span>
+    t_max = 1.0
+<span class="keyword">end</span>
+
+properties (SetAccess = private)
+    isConnected = false     <span class="comment">% Robot Connected, aka TCP/IP object connected</span>
+    autoMode = false        <span class="comment">% If automatic mode</span>
+    tcpObj                  <span class="comment">% TCP/IP Object</span>
+    timerObj                <span class="comment">% Timer Object for sending commands</span>
+    timerStop               <span class="comment">% Timer to send stop command</span>
+    currentCommand          <span class="comment">% String representing a command to be sent</span>
+<span class="keyword">end</span>
+</pre><h2>Hidden Properties<a name="4"></a></h2><pre class="codeinput">properties (Access = private) <span class="comment">% Default</span>
+   defaultHost = <span class="string">'192.168.1.2'</span>
+   defaultPort = 30002
+   refreshRate = 1/125  <span class="comment">% seconds. Default is 0.008 (1/125).</span>
+<span class="keyword">end</span>
+</pre><h2>Events<a name="5"></a></h2><pre class="codeinput">events
+    incChange
+<span class="keyword">end</span> <span class="comment">%events</span>
+
+methods
+</pre><h2>CONSTRUCTORS<a name="6"></a></h2><pre class="codeinput"><span class="keyword">function</span> hObj = UR10Controller( varargin )
+    <span class="keyword">switch</span> nargin
+
+<span class="comment">% default settings:</span>
+        <span class="keyword">case</span> 0 <span class="comment">% nargin == 0</span>
+            hObj.tcpObj = tcpip(hObj.defaultHost,hObj.defaultPort);
+
+<span class="comment">% given 'tcpip'  object:</span>
+        <span class="keyword">case</span> 1 <span class="comment">% nargin == 1</span>
+            <span class="keyword">if</span> isa( varargin{1}, <span class="string">'tcpip'</span>)
+                hObj.tcpObj = varargin{1};
+            <span class="keyword">else</span>
+                error( <span class="string">'UR10Controller:constructor:nargin1'</span>, <span class="keyword">...</span>
+                           <span class="string">'Invalid input. Singleton must be a TCP/IP object.'</span> );
+            <span class="keyword">end</span>
+
+<span class="comment">% given address and port</span>
+        <span class="keyword">case</span> 2
+            <span class="keyword">if</span> or( ~ischar(varargin{1} ), ~isnumeric( varargin{2} )  )
+                error( <span class="string">'UR10Controller:constructor:nargin2'</span>, <span class="keyword">...</span>
+                           <span class="string">'Invalid inputs. Indicate first the remote host as a string, then the remote port and a numeric value.'</span> );
+            <span class="keyword">else</span>
+                hObj.tcpObj = tcpip(varargin{1},varargin{2});
+            <span class="keyword">end</span>
+<span class="comment">% other cases</span>
+        <span class="keyword">otherwise</span>
+                error( <span class="string">'UR10Controller:constructor:nargin3'</span>, <span class="keyword">...</span>
+                           <span class="string">'Too many inputs.'</span> );
+                <span class="keyword">return</span>
+
+    <span class="keyword">end</span> <span class="comment">% switch:nargin</span>
+
+<span class="comment">% define timer</span>
+<span class="comment">%     hObj.timerObj = timer(...</span>
+<span class="comment">%         'Name','inc_update_timer',...</span>
+<span class="comment">%         'BusyMode','drop',...</span>
+<span class="comment">%         'ExecutionMode','fixedrate',...</span>
+<span class="comment">%         'Period',hObj.refreshRate,...</span>
+<span class="comment">%         'TimerFcn',@sendCommand);</span>
+    hObj.timerStop = timer(<span class="keyword">...</span>
+        <span class="string">'Name'</span>,<span class="string">'Stop-Timer'</span>,<span class="keyword">...</span>
+        <span class="string">'StartDelay'</span>,hObj.t_max-0.1 * hObj.t_max,<span class="keyword">...</span>
+        <span class="string">'TimerFcn'</span>,@(src,evt)hObj.timerStopFcn(hObj,evt),<span class="keyword">...</span>
+        <span class="string">'UserData'</span>,hObj);
+
+
+<span class="comment">% print result</span>
+    fprintf(<span class="string">'Remote TCP/IP server configured @%s:%i\n'</span>,hObj.tcpObj.RemoteHost,hObj.tcpObj.RemotePort);
+
+<span class="keyword">end</span> <span class="comment">% controller (constructor)</span>
+</pre><pre class="codeoutput">Remote TCP/IP server configured @192.168.1.2:30002
+
+ans = 
+
+  UR10Controller with properties:
+
+               inc: [6x1 double]
+                 a: 0.2000
+             t_min: 1
+             t_max: 1
+       isConnected: 0
+          autoMode: 0
+            tcpObj: [1x1 tcpip]
+          timerObj: []
+         timerStop: [1x1 timer]
+    currentCommand: []
+
+</pre><h2>PROPERTY ACCESS METHODS<a name="7"></a></h2><pre class="codeinput"><span class="keyword">function</span> set.inc( obj, value )
+
+    <span class="keyword">if</span> obj.autoMode
+        error( <span class="string">'UR10Controller:setproperty:increment:mode'</span>,<span class="keyword">...</span>
+                    <span class="string">'You cannot set the increment during automatic mode.'</span>);
+    <span class="keyword">elseif</span> ~isnumeric(value)
+        error( <span class="string">'UR10Controller:setproperty:increment:numeric'</span>,<span class="keyword">...</span>
+                    <span class="string">'Value must be numeric.'</span>);
+    <span class="keyword">else</span>
+        sz = size(value);
+        <span class="keyword">if</span> ( min(sz)~=1 || max(sz)~=6 )
+            error( <span class="string">'UR10Controller:setproperty:increment:size'</span>,<span class="keyword">...</span>
+                        <span class="string">'Increment must be set to a vector of length 6.'</span>);
+        <span class="keyword">else</span>
+            obj.inc = value;
+            obj.speedl(obj.inc,obj.a,obj.t_min);
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span> <span class="comment">%set.inc</span>
+<span class="keyword">function</span> set.t_min (obj, value)
+    <span class="keyword">if</span> isnumeric(value)
+        obj.t_min = value;
+        obj.timerStop.StartDelay = value - 0.1 *value;
+    <span class="keyword">end</span>
+<span class="keyword">end</span> <span class="comment">%set.t_min</span>
+
+<span class="keyword">function</span> set.tcpObj( obj, value )
+    <span class="keyword">if</span> ~isa(value,<span class="string">'tcpip'</span>)
+        error( <span class="string">'UR10Controller:setproperty:tcpip'</span>,<span class="keyword">...</span>
+                    <span class="string">'This property must be a object of class %s.'</span>,<span class="string">'tcpip'</span>);
+    <span class="keyword">else</span>
+        obj.tcpObj = value;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+</pre><h2>BASIC METHODS<a name="8"></a></h2><pre class="codeinput"><span class="keyword">function</span> initialize ( obj )
+    <span class="keyword">if</span> obj.isConnected
+        disp(<span class="string">'Already initialized.'</span>);
+        <span class="keyword">return</span>
+    <span class="keyword">end</span>
+    fopen(obj.tcpObj);
+
+    <span class="comment">% check connection</span>
+    <span class="comment">% send robot home</span>
+    <span class="comment">% wait</span>
+    disp(<span class="string">'Connection initialized.'</span>);
+    obj.isConnected = true;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> terminate ( obj )
+    <span class="keyword">if</span> ~obj.isConnected
+        disp(<span class="string">'Already terminated.'</span>);
+        <span class="keyword">return</span>
+    <span class="keyword">end</span>
+    <span class="comment">% send stop command</span>
+    <span class="comment">% close connection</span>
+    fclose(obj.tcpObj);
+    obj.isConnected = false;
+    disp(<span class="string">'I''m no longer active.'</span>);
+<span class="keyword">end</span>
+
+<span class="comment">% function startAuto ( obj )</span>
+<span class="comment">%     % Starts timer that sends commands to the robot</span>
+<span class="comment">%     if ( strcmp(obj.timerObj.Running,'on') || obj.autoMode == true )</span>
+<span class="comment">%         disp('I believe the...');</span>
+<span class="comment">%     end</span>
+<span class="comment">% end</span>
+
+<span class="comment">% Delete method</span>
+<span class="keyword">function</span> delete (obj)
+    <span class="keyword">if</span> obj.isConnected
+        terminate(obj); <span class="keyword">end</span>
+<span class="comment">%     if strcmp(obj.timerObj.Running,'on')</span>
+<span class="comment">%         stop(obj.timerObj); end</span>
+<span class="keyword">end</span>
+</pre><h2>CONTROL METHODS: Rotation<a name="9"></a></h2><pre class="codeinput"><span class="keyword">function</span> rotDir ( obj, value )
+<span class="comment">% function rotDir(value)</span>
+<span class="comment">% Inverts rotation direction based on 'value'.</span>
+<span class="comment">% 'value' can be any numeric value. The sign of 'value'</span>
+<span class="comment">% determines the rotation direction according to the</span>
+<span class="comment">% right-hand rule.</span>
+
+    <span class="keyword">if</span> ( value &gt; 0 &amp;&amp; obj.inc &lt; 0 )
+        obj.inc(4) = - obj.inc(4);
+    <span class="keyword">elseif</span> ( value &lt; 0 &amp;&amp; obj.inc &gt; 0 )
+        obj.inc(4) = - obj.inc(4);
+    <span class="keyword">else</span>
+        <span class="comment">%Do nothing</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> rotAdd ( obj )
+<span class="comment">% function rotAdd</span>
+<span class="comment">% Sets the rotation term to 1.</span>
+
+    <span class="keyword">if</span> obj.inc(4) == 0
+        obj.inc(4) = 1;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> rotSpeed ( obj , value )
+<span class="comment">% function rotSpeed</span>
+<span class="comment">% Sets the rotation speed.</span>
+
+    obj.inc(4) = value;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> rotStop (obj)
+<span class="comment">% function rotStop</span>
+<span class="comment">% Annuls rotation speed.</span>
+    obj.rotSpeed(0);
+<span class="keyword">end</span>
+</pre><h2>CONTROL METHODS: Translation<a name="10"></a></h2><pre class="codeinput"><span class="keyword">function</span> transDir ( obj )
+<span class="comment">% function transDir</span>
+<span class="comment">% Inverts translation direction.</span>
+obj.inc(1:3) = obj.inc(1:3) * rotz(pi);
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> transAdd ( obj, value )
+<span class="comment">% function transAdd</span>
+<span class="comment">% Sets increment to the translation direction.</span>
+value = value / norm(value);
+obj.inc(1:3) = value;
+
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> transSpeed ( obj , value )
+<span class="comment">% function transSpeed(value)</span>
+<span class="comment">% Sets the translation speed to 'value'.</span>
+
+obj.inc(1:3) = obj.inc(1:3) / norm( obj.inc(1:3) ) * value;
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> transStop (obj)
+    obj.transSpeed(0);
+<span class="keyword">end</span>
+
+<span class="comment">% Stop all movements</span>
+<span class="keyword">function</span> stop (obj)
+    obj.inc = zeros(6,1);
+    <span class="comment">% TODO: possibly have to had an abort command</span>
+<span class="keyword">end</span>
+
+<span class="comment">% TODO:</span>
+<span class="comment">% Set home</span>
+<span class="comment">% Send home</span>
+<span class="comment">% Set vertical translation direction</span>
+<span class="comment">% Add vertical translation</span>
+<span class="comment">% Set vertical translation speed</span>
+<span class="comment">% Remove vertical translation</span>
+</pre><h2>COMMAND METHODS<a name="11"></a></h2><p>TODO: movel movej speedl speedj stopj</p><pre class="codeinput"><span class="keyword">function</span> sendCommand( obj )
+    <span class="keyword">if</span> ~obj.isConnected
+        error( <span class="string">'UR10Controller:methods:sendCommand:notconnected'</span>,<span class="keyword">...</span>
+                    <span class="string">'Not connected to the host.'</span>);
+        <span class="keyword">return</span>
+    <span class="keyword">end</span>
+    fprintf(obj.tcpObj,obj.currentCommand);
+    fprintf(obj.currentCommand);
+<span class="keyword">end</span>
+
+<span class="keyword">function</span> speedl(obj, xd, a , t_min)
+<span class="comment">% Function speedl - Accelerate to and move with constant tool speed.</span>
+<span class="comment">% Parameters:</span>
+<span class="comment">% Input  xd:    tool speed (m/s) (spatial vector)</span>
+<span class="comment">%         a:    tool acceleration (m/s^2)</span>
+<span class="comment">%     t_min:    minimal time before function return</span>
+<span class="comment">% Output  s:    string to be sent to the UR10</span>
+
+    in = [xd; a; t_min];
+    in = cellstr(num2str(in,<span class="string">'%.2f'</span>));
+    in = strtrim(in);
+
+    s = sprintf([<span class="string">'speedl([%s,%s,%s,%s,%s,%s],'</span> <span class="keyword">...</span>
+                 <span class="string">'%s,'</span><span class="keyword">...</span>
+                 <span class="string">'%s)\n'</span>],in{1:8});
+    obj.currentCommand = s;
+    fprintf(<span class="string">'%s\n'</span>,obj.timerStop.Running);
+    sendCommand(obj);
+
+    <span class="comment">%start(obj.timerStop);</span>
+<span class="keyword">end</span>
+<span class="keyword">function</span> speedj(obj, q)
+    a_max = 0.2;
+    s = sprintf(<span class="string">'speedj([%.2f,0,0,0,0,0],%.2f,%.2f)\n'</span>,q,a_max,obj.t_min);
+    obj.currentCommand = s;
+    sendCommand(obj);
+<span class="keyword">end</span>
+<span class="keyword">function</span> stopl(obj)
+    a_max = 0.2;
+    s = sprintf(<span class="string">'stopl(%.1f)\n'</span>,a_max);
+    obj.currentCommand = s;
+    sendCommand(obj);
+    obj.inc = zeros(6,1);
+<span class="keyword">end</span>
+</pre><pre class="codeinput"><span class="keyword">end</span> <span class="comment">%methods</span>
+</pre><h2>PRIVATE METHODS<a name="13"></a></h2><pre class="codeinput">methods ( Access = private )
+
+    <span class="keyword">function</span> timerStopFcn(src,~,~,~)
+        stopl(src);
+        fprintf(<span class="string">'deceled\n'</span>);
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+</pre><h2>STATIC METHODS<a name="14"></a></h2><pre class="codeinput">methods ( Static = true )
+<span class="keyword">function</span> R = rotz(angle)
+    R = [cos(angle),-sin(angle),0;<span class="keyword">...</span>
+         sin(angle),cos(angle) ,0;<span class="keyword">...</span>
+         0,         0,          1];
+<span class="keyword">end</span>
+
+<span class="keyword">end</span> <span class="comment">%methods:static</span>
+</pre><pre class="codeinput"><span class="keyword">end</span> <span class="comment">%classdef</span>
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+classdef UR10Controller < handle
+%UR10Controller Adds commands for steering the end effector of a UR10
+%robot based on a remote TCP/IP connection.
+%
+%% Public Properties
+properties
+    inc = zeros(6,1)    % 3D Translation vector, Z-Rotation Scalar (4D)
+    a = 0.2             % tool acceleration (m/s^2)
+    t_min = 1.0         % minimal time before function return
+    t_max = 1.0
+end
+
+properties (SetAccess = private)
+    isConnected = false     % Robot Connected, aka TCP/IP object connected
+    autoMode = false        % If automatic mode
+    tcpObj                  % TCP/IP Object
+    timerObj                % Timer Object for sending commands
+    timerStop               % Timer to send stop command
+    currentCommand          % String representing a command to be sent
+end
+
+%% Hidden Properties
+properties (Access = private) % Default 
+   defaultHost = '192.168.1.2'
+   defaultPort = 30002
+   refreshRate = 1/125  % seconds. Default is 0.008 (1/125).
+end
+
+%% Events
+events
+    incChange
+end %events
+
+methods
+%% CONSTRUCTORS
+function hObj = UR10Controller( varargin )
+    switch nargin
+
+% default settings:
+        case 0 % nargin == 0
+            hObj.tcpObj = tcpip(hObj.defaultHost,hObj.defaultPort);
+
+% given 'tcpip'  object:
+        case 1 % nargin == 1
+            if isa( varargin{1}, 'tcpip')
+                hObj.tcpObj = varargin{1};
+            else
+                error( 'UR10Controller:constructor:nargin1', ...
+                           'Invalid input. Singleton must be a TCP/IP object.' );
+            end
+
+% given address and port
+        case 2
+            if or( ~ischar(varargin{1} ), ~isnumeric( varargin{2} )  )
+                error( 'UR10Controller:constructor:nargin2', ...
+                           'Invalid inputs. Indicate first the remote host as a string, then the remote port and a numeric value.' );
+            else
+                hObj.tcpObj = tcpip(varargin{1},varargin{2});
+            end
+% other cases
+        otherwise
+                error( 'UR10Controller:constructor:nargin3', ...
+                           'Too many inputs.' );
+                return
+
+    end % switch:nargin
+
+% define timer
+%     hObj.timerObj = timer(...
+%         'Name','inc_update_timer',...
+%         'BusyMode','drop',...
+%         'ExecutionMode','fixedrate',...
+%         'Period',hObj.refreshRate,...
+%         'TimerFcn',@sendCommand);
+    hObj.timerStop = timer(...
+        'Name','Stop-Timer',...
+        'StartDelay',hObj.t_max-0.1 * hObj.t_max,...
+        'TimerFcn',@(src,evt)hObj.timerStopFcn(hObj,evt),...
+        'UserData',hObj);
+    
+    
+% print result
+    fprintf('Remote TCP/IP server configured @%s:%i\n',hObj.tcpObj.RemoteHost,hObj.tcpObj.RemotePort);
+
+end % controller (constructor)
+
+%% PROPERTY ACCESS METHODS
+function set.inc( obj, value )
+    
+    if obj.autoMode
+        error( 'UR10Controller:setproperty:increment:mode',...
+                    'You cannot set the increment during automatic mode.');
+    elseif ~isnumeric(value)
+        error( 'UR10Controller:setproperty:increment:numeric',...
+                    'Value must be numeric.');
+    else
+        sz = size(value);
+        if ( min(sz)~=1 || max(sz)~=6 )
+            error( 'UR10Controller:setproperty:increment:size',...
+                        'Increment must be set to a vector of length 6.');
+        else
+            obj.inc = value;
+            obj.speedl(obj.inc,obj.a,obj.t_min);
+        end
+    end
+        
+end %set.inc
+function set.t_min (obj, value)
+    if isnumeric(value)
+        obj.t_min = value;
+        obj.timerStop.StartDelay = value - 0.1 *value;
+    end
+end %set.t_min
+
+function set.tcpObj( obj, value )
+    if ~isa(value,'tcpip')
+        error( 'UR10Controller:setproperty:tcpip',...
+                    'This property must be a object of class %s.','tcpip');
+    else
+        obj.tcpObj = value;
+    end
+end
+
+%% BASIC METHODS
+function initialize ( obj )
+    if obj.isConnected
+        disp('Already initialized.');
+        return
+    end
+    fopen(obj.tcpObj);
+
+    % check connection
+    % send robot home
+    % wait
+    disp('Connection initialized.');
+    obj.isConnected = true;
+end 
+
+function terminate ( obj )
+    if ~obj.isConnected
+        disp('Already terminated.');
+        return
+    end
+    % send stop command
+    % close connection
+    fclose(obj.tcpObj);
+    obj.isConnected = false;
+    disp('I''m no longer active.');
+end
+
+% function startAuto ( obj )
+%     % Starts timer that sends commands to the robot
+%     if ( strcmp(obj.timerObj.Running,'on') || obj.autoMode == true )
+%         disp('I believe the...');
+%     end
+% end
+
+% Delete method
+function delete (obj)
+    if obj.isConnected
+        terminate(obj); end
+%     if strcmp(obj.timerObj.Running,'on')
+%         stop(obj.timerObj); end
+end
+
+%% CONTROL METHODS: Rotation
+function rotDir ( obj, value )
+% function rotDir(value)
+% Inverts rotation direction based on 'value'.
+% 'value' can be any numeric value. The sign of 'value'
+% determines the rotation direction according to the
+% right-hand rule.
+
+    if ( value > 0 && obj.inc < 0 )
+        obj.inc(4) = - obj.inc(4);
+    elseif ( value < 0 && obj.inc > 0 )
+        obj.inc(4) = - obj.inc(4);
+    else
+        %Do nothing
+    end
+end
+
+function rotAdd ( obj )
+% function rotAdd
+% Sets the rotation term to 1.
+
+    if obj.inc(4) == 0
+        obj.inc(4) = 1;
+    end
+end
+
+function rotSpeed ( obj , value )
+% function rotSpeed
+% Sets the rotation speed.
+
+    obj.inc(4) = value;
+end
+
+function rotStop (obj)
+% function rotStop
+% Annuls rotation speed.
+    obj.rotSpeed(0);
+end
+
+%% CONTROL METHODS: Translation
+function transDir ( obj )
+% function transDir
+% Inverts translation direction.
+obj.inc(1:3) = obj.inc(1:3) * rotz(pi);
+end
+
+function transAdd ( obj, value )
+% function transAdd
+% Sets increment to the translation direction.
+value = value / norm(value);
+obj.inc(1:3) = value;
+
+end
+
+function transSpeed ( obj , value )
+% function transSpeed(value)
+% Sets the translation speed to 'value'.
+
+obj.inc(1:3) = obj.inc(1:3) / norm( obj.inc(1:3) ) * value;
+end
+
+function transStop (obj)
+    obj.transSpeed(0);
+end
+
+% Stop all movements
+function stop (obj)
+    obj.inc = zeros(6,1);
+    % TODO: possibly have to had an abort command
+end
+
+% TODO:
+% Set home
+% Send home
+% Set vertical translation direction
+% Add vertical translation
+% Set vertical translation speed
+% Remove vertical translation
+
+%% COMMAND METHODS
+% TODO:
+% movel
+% movej
+% speedl
+% speedj
+% stopj
+
+function sendCommand( obj )
+    if ~obj.isConnected
+        error( 'UR10Controller:methods:sendCommand:notconnected',...
+                    'Not connected to the host.');
+        return
+    end
+    fprintf(obj.tcpObj,obj.currentCommand);
+    fprintf(obj.currentCommand);
+end
+
+function speedl(obj, xd, a , t_min)
+% Function speedl - Accelerate to and move with constant tool speed.
+% Parameters:
+% Input  xd:    tool speed (m/s) (spatial vector)
+%         a:    tool acceleration (m/s^2)
+%     t_min:    minimal time before function return
+% Output  s:    string to be sent to the UR10
+
+    in = [xd; a; t_min];
+    in = cellstr(num2str(in,'%.2f'));
+    in = strtrim(in);
+    
+    s = sprintf(['speedl([%s,%s,%s,%s,%s,%s],' ...
+                 '%s,'...
+                 '%s)\n'],in{1:8});
+    obj.currentCommand = s;
+    fprintf('%s\n',obj.timerStop.Running);
+    sendCommand(obj);
+    
+    %start(obj.timerStop);
+end
+function speedj(obj, q)
+    a_max = 0.2;
+    s = sprintf('speedj([%.2f,0,0,0,0,0],%.2f,%.2f)\n',q,a_max,obj.t_min);
+    obj.currentCommand = s;
+    sendCommand(obj);
+end
+function stopl(obj)
+    a_max = 0.2;
+    s = sprintf('stopl(%.1f)\n',a_max);
+    obj.currentCommand = s;
+    sendCommand(obj);
+    obj.inc = zeros(6,1);
+end
+
+end %methods
+%% PRIVATE METHODS
+methods ( Access = private )
+    
+    function timerStopFcn(src,~,~,~)
+        stopl(src);
+        fprintf('deceled\n');
+    end
+    
+end
+
+%% STATIC METHODS
+methods ( Static = true )
+function R = rotz(angle)
+    R = [cos(angle),-sin(angle),0;...
+         sin(angle),cos(angle) ,0;...
+         0,         0,          1];
+end
+
+end %methods:static
+
+
+end %classdef
+##### SOURCE END #####
+--></body></html>
