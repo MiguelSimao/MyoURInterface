@@ -25,15 +25,15 @@ properties (SetAccess = private)
     isConnected = false     % Robot Connected, aka TCP/IP object connected
     autoMode = false        % If automatic mode
     tcpObj                  % TCP/IP Object
-    timerObj                % Timer Object for sending commands
     timerStop               % Timer to send stop command
     currentCommand          % String representing a command to be sent
 end
 
 %% More Properties
-properties (SetAccess = private) % Default 
-   defaultHost = '192.168.1.2'
-   defaultPort = 30002
+properties (SetAccess = private)
+    % Default TCP/IP options:
+    defaultHost = '192.168.1.2'
+    defaultPort = 30002
 end
 properties (Dependent)
     speedLimitCart
@@ -44,8 +44,11 @@ properties (Dependent)
     timestamp
 end
 properties (SetAccess = private, Hidden = true)
-    timestampBegin
+    timestampBegin          % Initialization timestamp
+    startTimestamp          % Timestamp for action start
+    stopTimestamp           % Timestamp for action end
     displacement = zeros(6,1)
+    currentSpeed = zeros(6,1)
     radDeg = round(180/pi,3)
 end
 %% Events
@@ -91,9 +94,10 @@ function hObj = UR10Controller( varargin )
         'Name','Stop-Timer',...
         'StartDelay',1,...
         'TimerFcn',@(src,evt)hObj.timerStopFcn(hObj,evt),...
+        'StopFcn', @(src,evt)hObj.timerStopFcn(hObj,evt),...
         'UserData',hObj);
     
-% setting up the tcp/ip object for receiving comms
+% setting up the tcp/ip object for receiving comms, not working currently
     set(hObj.tcpObj,...
         'BytesAvailableFcn','fprintf(''%s'',fgetl(h.tcpObj));',...
         'InputBufferSize',1024);
@@ -123,8 +127,7 @@ function set.inc( obj, value )
             if norm(obj.inc(1:3)) > obj.speedLimitCart
                 r = obj.speedLimitCart / norm(obj.inc(1:3));
                 obj.inc(1:3) = r * obj.inc(1:3);
-                fprintf(['The specified speed cannot be attained under these conditions.\n'...
-                         'Rescale factor: %.2f\n'], r);
+                fprintf('              Unattainable speed. Rescaling factor: %.2f.\n',r);
             end
             speedl(obj);
             obj.inc = zeros(6,1);
@@ -173,9 +176,9 @@ function initialize ( obj )
     % check connection
     % send robot home
     % wait
-    disp('Connection initialized.');
     obj.isConnected = true;
     obj.timestampBegin = tic;
+    fprintf('%s: Initialized.\n',obj.timestamp);
 end 
 
 function terminate ( obj )
@@ -187,7 +190,12 @@ function terminate ( obj )
     % close connection
     fclose(obj.tcpObj);
     obj.isConnected = false;
-    disp('I''m no longer active.');
+    fprintf('%s: Terminated.\n',obj.timestamp);
+end
+
+function reset(obj)
+    obj.displacement = zeros(6,1);
+    fprintf('%s: Displacement reset.\n',obj.timestamp);
 end
 
 % function startAuto ( obj )
@@ -246,36 +254,36 @@ function rotStop (obj)
 end
 
 %% CONTROL METHODS: Translation
-function transDir ( obj )
-% function transDir
-% Inverts translation direction.
-obj.inc(1:3) = obj.inc(1:3) * rotz(pi);
-end
+    function transDir ( obj )
+    % function transDir
+    % Inverts translation direction.
+    obj.inc(1:3) = obj.inc(1:3) * rotz(pi);
+    end
 
-function transAdd ( obj, value )
-% function transAdd
-% Sets increment to the translation direction.
-value = value / norm(value);
-obj.inc(1:3) = value;
+    function transAdd ( obj, value )
+    % function transAdd
+    % Sets increment to the translation direction.
+    value = value / norm(value);
+    obj.inc(1:3) = value;
 
-end
+    end
 
-function transSpeed ( obj , value )
-% function transSpeed(value)
-% Sets the translation speed to 'value'.
+    function transSpeed ( obj , value )
+    % function transSpeed(value)
+    % Sets the translation speed to 'value'.
 
-obj.inc(1:3) = obj.inc(1:3) / norm( obj.inc(1:3) ) * value;
-end
+    obj.inc(1:3) = obj.inc(1:3) / norm( obj.inc(1:3) ) * value;
+    end
 
-function transStop (obj)
-    obj.transSpeed(0);
-end
+    function transStop (obj)
+        obj.transSpeed(0);
+    end
 
 % Stop all movements
-function stop (obj)
-    obj.inc = zeros(6,1);
-    % TODO: possibly have to had an abort command
-end
+    function stop (obj)
+        obj.inc = zeros(6,1);
+        % TODO: possibly have to had an abort command
+    end
 
 % TODO:
 % Set home
@@ -293,49 +301,50 @@ end
 % speedj
 % stopj
 
-function sendCommand( obj )
-    if ~obj.isConnected
-        error( 'UR10Controller:methods:sendCommand:notconnected',...
-                    'Not connected to the host.');
-        return %#ok<UNRCH>
-    end
-    fprintf('%s: %s',obj.timestamp,obj.currentCommand);
-    fprintf(obj.tcpObj,obj.currentCommand);
-    
-end
+    function sendCommand( obj )
+        if ~obj.isConnected
+            error( 'UR10Controller:methods:sendCommand:notconnected',...
+                        'Not connected to the host.');
+            return %#ok<UNRCH>
+        end
+        fprintf('%s: %s\n',obj.timestamp,obj.currentCommand);
+        fprintf(obj.tcpObj,obj.currentCommand);
 
-function speedl(obj)
-% Function speedl - Accelerate to specified tool speed
-% Parameters:
-% Input  xd:    tool speed (m/s) (spatial vector)
-%         a:    tool acceleration (m/s^2)
-%     t_min:    minimal time before function return
-% Output  s:    string to be sent to the UR10
-    
-    in = [obj.inc; obj.a; obj.t_min];
-    in = cellstr(num2str(in,'%.2f'));
-    in = strtrim(in);
-    
-    s = sprintf(['speedl([%s,%s,%s,%s,%s,%s],' ...
-                 '%s,'...
-                 '%s)\n'],in{1:8});
-    obj.currentCommand = s;
-    startTimer(obj);
-    sendCommand(obj);
-    displacementEstimation(obj);
-end
-function speedj(obj)
-% Function speedj - Accelerate joints to target speed.
-    s = sprintf('speedj([%.2f,%.2f,%.2f,%.2f,%.2f,%.2f],%.2f,%.2f)\n',obj.q,obj.a_r,obj.t_min);
-    obj.currentCommand = s;
-    start(obj.timerStop);
-    sendCommand(obj);
-end
-function stopl(obj)
-    a_max = obj.a;
-    obj.currentCommand = sprintf('stopl(%.1f)\n',a_max);
-    sendCommand(obj);
-end
+    end
+
+    function speedl(obj)
+    % Function speedl - Accelerate to specified tool speed
+    % Parameters:
+    % Input  xd:    tool speed (m/s) (spatial vector)
+    %         a:    tool acceleration (m/s^2)
+    %     t_min:    minimal time before function return
+    % Output  s:    string to be sent to the UR10
+
+        obj.currentSpeed = obj.inc;
+
+        in = [obj.inc; obj.a; obj.t_min];
+        in = cellstr(num2str(in,'%.2f'));
+        in = strtrim(in);
+
+        s = sprintf(['speedl([%s,%s,%s,%s,%s,%s],' ...
+                     '%s,'...
+                     '%s)'],in{1:8});
+        obj.currentCommand = s;
+        startTimer(obj);
+        sendCommand(obj);
+    end
+    function speedj(obj)
+    % Function speedj - Accelerate joints to target speed.
+        s = sprintf('speedj([%.2f,%.2f,%.2f,%.2f,%.2f,%.2f],%.2f,%.2f)\n',obj.q,obj.a_r,obj.t_min);
+        obj.currentCommand = s;
+        start(obj.timerStop);
+        sendCommand(obj);
+    end
+    function stopl(obj)
+        a_max = obj.a;
+        obj.currentCommand = sprintf('stopl(%.1f)',a_max);
+        sendCommand(obj);
+    end
 
 end %methods
 %% OTHER METHODS
@@ -343,30 +352,38 @@ methods
     function displacementEstimation(obj)
         % Diplacement is a function of the target speed and time.
         % x = x0 + vt (infinite jerk approximation)
-        obj.displacement = obj.displacement + obj.inc * obj.timerStopDelay;
-        fprintf('x:% 4.2f y:% 4.2f z:% 4.2f [cm] | h:% 3.0fº\n',obj.displacement(1:3)*100,obj.displacement(6)*obj.radDeg);
-    end    
+        dt = obj.stopTimestamp - obj.startTimestamp;
+        obj.displacement = obj.displacement + obj.currentSpeed * dt;
+        obj.currentSpeed = zeros(6,1);
+        fprintf('              x:% 4.1f y:% 4.1f z:% 4.1f [cm] | h:% 3.1fº\n',obj.displacement(1:3)*100,obj.displacement(6)*obj.radDeg);
+    end
+    function stopTimer(obj)
+        stop(obj.timerStop);
+    end
 end%methods(other)
 %% PRIVATE METHODS
 methods ( Access = private )
     function timerStopFcn(src,~,~,~)
+        % Stop function for smooth stop of the speedl command.
         stopl(src);
+        src.stopTimestamp = toc(src.timestampBegin);
+        displacementEstimation(src);
     end
     function startTimer(obj)
-        t = obj.timerStop;
-        set(t, 'StartDelay', floor(obj.timerStopDelay*1000)/1000);
-        start(t);
+        % Custom start(timer) function.
+        set(obj.timerStop, 'StartDelay', floor(obj.timerStopDelay*1000)/1000);
+        obj.startTimestamp = toc(obj.timestampBegin);
+        start(obj.timerStop);
     end
 end
 
 %% STATIC METHODS
 methods ( Static = true )
-function R = rotz(angle)
-    R = [cos(angle),-sin(angle),0;...
-         sin(angle),cos(angle) ,0;...
-         0,         0,          1];
-end
-
+    function R = rotz(angle)
+        R = [cos(angle),-sin(angle),0;...
+             sin(angle),cos(angle) ,0;...
+             0,         0,          1];
+    end
 end %methods:static
 
 

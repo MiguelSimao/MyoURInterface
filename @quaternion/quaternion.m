@@ -1470,6 +1470,19 @@ methods
         end % for iel
         angles  = chop( angles );
     end % EulerAngles
+    %% Custom code by Miguel Simão{
+    function angles = IntrinsicEulerAngles( q )
+        % e(4,1)   components, basis [1; i; j; k]: e(1) + i*e(2) + j*e(3) + k*e(4)
+        angles = zeros(3,1);
+        qw = q.e(1);
+        qx = q.e(2);
+        qy = q.e(3);
+        qz = q.e(4);
+
+        angles(3) = atan2(2*(qw*qx+qy*qz),1-2*(qx*qx+qy*qy));
+        angles(2) = asin(2*(qw*qy-qz*qx));
+        angles(1) = atan2(2*(qw*qz+qx*qy),1-2*(qy*qy+qz*qz));
+    end % IntrinsicEulerAngles
 
     function q1 = Integral( q0, t, w, varargin )
 % Integrate angular velocities over time (using ode45) to obtain the
