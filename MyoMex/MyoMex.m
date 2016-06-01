@@ -83,8 +83,8 @@ classdef MyoMex < handle
       % we depend on finding resources in the root directory for this class
       class_root_path = fileparts(mfilename('fullpath'));
       % check that myo_mex exists as a mex file in the expected location
-      assert(3==exist(fullfile(class_root_path,'myo_mex/myo_mex')),...
-        'MEX-file ''myo_mex'' is not on MATLAB''s search path and is required for MyoMex.');
+%       assert(3==exist(fullfile(class_root_path,'myo_mex/myo_mex')),...
+%         'MEX-file ''myo_mex'' is not on MATLAB''s search path and is required for MyoMex.');
       
       % check to see if myo_mex is in an initializable state
       try % myo_mex_assert_ready_to_init returns iff myo_mex is unlocked

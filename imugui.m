@@ -335,7 +335,9 @@ if handles.image_pose_enabled
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-angles = R2YPR(R1)*180/3.14;
+%angles = R2YPR(R1)*180/3.14;
+angles = IntrinsicEulerAngles(q1)*180/3.14;
+%angles = q2angle(q1)*180/3.14;
 %newData = [t=1------------a=2:4--------g=5:7-------q=8:11-----]; 
 handles.txtStatus.String = sprintf('Pos: X:% 1.2f, Y:% 1.2f, Z:% 1.2f',P2(1),P2(2),P2(3));
 handles.txtSensors.String = sprintf('Sen: Ax:% 1.2f, Ay:% 1.2f, Az:% 1.2f',data1(1,2),data1(1,3),data1(1,4));
@@ -610,11 +612,15 @@ angles = [y p r];
 
 
 function angles = q2angle(q)
-q = q/norm(q);
-qx = q(1);
-qy = q(2);
-qz = q(3);
-qw = q(4);
+% e(4,1)   components, basis [1; i; j; k]: e(1) + i*e(2) + j*e(3) + k*e(4)
+qw = q.e(1);
+qx = q.e(2);
+qy = q.e(3);
+qz = q.e(4);
+
+r = atan2(2*(qw*qx+qy*qz),1-2*(qx*qx+qy*qy));
+p = asin(2*(qw*qy-qz*qx));
+y = atan2(2*(qw*qz+qx*qy),1-2*(qy*qy+qz*qz));
 
 % switch round(qx*qy+qz*qw,3) %check for singularities
 %     case 0.50 % north pole
@@ -632,9 +638,9 @@ qw = q(4);
 % end
 % angles = [y p r];
 
-r = atan2(2*qw*qx+2*qy*qz, 1-2*qx^2-2^qy^2);
-p = asin(max(-1,min(1,2*qw*qy-2*qz*qx)));
-y = atan2(2*qw*qz+2*qx*qy, 1-2*qy^2-2^qz^2);
+% r = atan2(2*qw*qx+2*qy*qz, 1-2*qx^2-2^qy^2);
+% p = asin(max(-1,min(1,2*qw*qy-2*qz*qx)));
+% y = atan2(2*qw*qz+2*qx*qy, 1-2*qy^2-2^qz^2);
 angles = [y p r];
 
 
