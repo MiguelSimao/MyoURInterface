@@ -287,8 +287,9 @@ classdef MyoInterface < handle
                 hUR.t_min = this.longTimeout;
                 
                 myoEulerAngles(this);
-                pitch = this.myoEuler(2) - 10; % pitch offset
-                
+                pitch = this.myoEuler(2) + 10; % pitch offset
+                % fprintf('% 4.0f\n',pitch);
+                % fprintf('%i\n',gesture);
                 switch gesture
                     case 1 % rest
                         % Do nothing
@@ -298,7 +299,7 @@ classdef MyoInterface < handle
                     case 2 % long-fist
                         
                         % Low speed jog, towards heading
-                        if abs(pitch) > 30 %pitch
+                        if abs(pitch) > 20 %pitch
                             % Vertical motion
                             hUR.inc(3) = sign(pitch) * this.linSpeedSlow;
                         else
@@ -324,6 +325,7 @@ classdef MyoInterface < handle
                     case 6 % double-tap
                         % Heading is inverted
                         this.xDir = - this.xDir;
+                        fprintf('%i\n',this.xDir);
                         
                     case 7 % double-fist
                         
@@ -333,7 +335,7 @@ classdef MyoInterface < handle
                             hUR.inc(3) = sign(pitch) * this.linSpeedFast;
                         else
                             this.updateHeading(hUR);
-                            hUR.inc(1:2) = [1; 0] * this.urRot(2:2,2:2) * this.linSpeedFast;
+                            hUR.inc(1:2) = [1; 0] * this.urRot(2:2,2:2) * this.xDir * this.linSpeedFast;
                         end
                         
                     case 8 % double-left
